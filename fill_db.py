@@ -1,23 +1,30 @@
 import random
+from decimal import Decimal
+
 from faker import Faker
 from django.contrib.auth.models import User
 from network.models import NetworkObject, Product, Contact, Address, Employee
 
 faker = Faker("ru_RU")
 
+
 def create_network_objects():
     suppliers = []
     for _ in range(10):
         supplier = random.choice(suppliers) if suppliers else None
+        if supplier:
+            while supplier.hierarchy == 4:
+                supplier = random.choice(suppliers)
         obj = NetworkObject.objects.create(
             name=faker.company(),
             supplier=supplier,
-            hierarchy=random.randint(0, 4),
-            debt=round(random.uniform(1000, 50000), 2)
+            hierarchy=(0 if not supplier else supplier.hierarchy + random.randint(1, 4 - supplier.hierarchy)),
+            debt=Decimal(random.uniform(1000, 50000)).quantize(Decimal('0.01'))
         )
         obj.save()
         suppliers.append(obj)
     print("[+] Добавлены объекты сети")
+
 
 def create_addresses():
     addresses = []
@@ -33,6 +40,7 @@ def create_addresses():
     print("[+] Добавлены адреса")
     return addresses
 
+
 def create_contacts(addresses):
     network_objects = list(NetworkObject.objects.all())
     for i in range(len(addresses)):
@@ -45,6 +53,7 @@ def create_contacts(addresses):
         )
     print("[+] Добавлены контакты")
 
+
 def create_products():
     network_objects = list(NetworkObject.objects.all())
     for _ in range(15):
@@ -55,6 +64,7 @@ def create_products():
         )
         product.network_object.set(random.sample(network_objects, k=random.randint(1, 5)))
     print("[+] Добавлены продукты")
+
 
 def create_employees():
     network_objects = list(NetworkObject.objects.all())
@@ -70,6 +80,7 @@ def create_employees():
         )
     print("[+] Добавлены сотрудники")
 
+
 def populate_database():
     print("[*] Заполняем базу тестовыми данными...")
     create_network_objects()
@@ -78,5 +89,6 @@ def populate_database():
     create_products()
     create_employees()
     print("[✔] Готово!")
+
 
 populate_database()

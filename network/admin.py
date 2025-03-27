@@ -1,7 +1,7 @@
-from django.contrib import admin
+from django.contrib import admin, messages
 from django.utils.html import format_html
 from .models import NetworkObject, Contact, Address, Product, Employee
-
+from .tasks import async_data_cleaning_task
 
 class ContactInline(admin.StackedInline):
     model = Contact
@@ -30,8 +30,14 @@ class NetworkObjectAdmin(admin.ModelAdmin):
     supplier_link.short_description = "Поставщик"
 
     def clear_debt(self, request, queryset):
-        updated = queryset.update(debt=0)
-        self.message_user(request, f"Задолженность очищена для {updated} объектов")
+        object_ids = list(queryset.values_list('id', flat=True))
+
+        if len(object_ids) > 20:
+            async_data_cleaning_task.delay(object_ids)
+            self.message_user(request, "Очистка задолженности запущена в фоне.", messages.INFO)
+        else:
+            updated = queryset.update(debt=0)
+            self.message_user(request, f"Задолженность очищена для {updated} объектов", messages.SUCCESS)
 
     clear_debt.short_description = "Очистить задолженность перед поставщиком"
 

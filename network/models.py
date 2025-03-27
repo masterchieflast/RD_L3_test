@@ -27,15 +27,25 @@ class NetworkObject(models.Model):
 
     created_at = models.DateTimeField("Время создания", auto_now_add=True)
 
-    def save(self, *args, **kwargs):
+    def clean(self):
         if self.supplier:
             new_level = self.supplier.level + 1
             if new_level > 4:
                 # raise ValidationError("Нельзя создать уровень выше 4")
                 new_level = 4
             self.level = new_level
+            if self.supplier.hierarchy >= self.hierarchy:
+                raise ValidationError("Поставщик должен быть выше в иерархии.")
+
+            self.level = new_level
         else:
             self.level = 0
+
+        if self.hierarchy == 0 and self.supplier:
+            raise ValidationError("Завод не может иметь поставщика.")
+
+    def save(self, *args, **kwargs):
+        self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self):
